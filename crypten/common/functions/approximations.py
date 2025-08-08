@@ -27,6 +27,8 @@ __all__ = [
     "erf",
     "softmax",
     "log_softmax",
+    "silu",
+    "gelu"
 ]
 
 
@@ -174,6 +176,21 @@ def reciprocal(self, input_in_01=False):
     else:
         raise ValueError(f"Invalid method {method} given for reciprocal function")
 
+def piecewise_approx(tensor):
+    default_approx = (
+        exp(tensor.div(2).add(0.2).neg())
+        .mul(2.2)
+        .add(0.2)
+        .add(tensor.div(1024).neg())
+    )
+    result = default_approx
+    result = crypten.where(tensor < 1e-2, 10.0, result)
+    result = crypten.where(tensor < 1e-4, 100.0, result)
+    result = crypten.where(tensor < 1e-6, 1000.0, result)
+    result = crypten.where((tensor < 200).get_plain_text(), result, 0.03)
+    result = crypten.where((tensor < 4000).get_plain_text(), result, 0.01)
+    return result
+
 
 def inv_sqrt(self):
     r"""
@@ -193,8 +210,7 @@ def inv_sqrt(self):
 
     # Initialize using decent approximation
     if initial is None:
-        y = exp(self.div(2).add(0.2).neg()).mul(2.2).add(0.2)
-        y -= self.div(1024)
+        y = piecewise_approx(self)
     else:
         y = initial
 
@@ -443,3 +459,42 @@ def log_softmax(self, dim, **kwargs):
     normalize_term = exp(logits).sum(dim, keepdim=True)
     result = logits - normalize_term.log()
     return result
+
+class silu:
+    def __init__(self):
+        self.func = crypten.nn.Sigmoid()
+
+    def forward(self, x):
+        return x * self.func(x)
+
+    def __call__(self, x):
+        return self.forward(x)
+
+class gelu:
+    """
+    Implementation of the GELU activation function currently in Google BERT repo (identical to OpenAI GPT).
+    Reference: Gaussian Error Linear Units (GELU) paper: https://arxiv.org/abs/1606.08415
+    """
+
+    def __init__(self):
+        self.half = torch.tensor([0.5]).item()
+        self.one = torch.tensor([1.0]).item()
+        self.three = torch.tensor([3.0]).item()
+        self.constant = torch.tensor([0.044715]).item()
+        self.pi_const = torch.tensor([math.sqrt(2 / math.pi)]).item()
+        self.pow = crypten.nn.Pow()
+
+    def forward(self, x):
+        return (
+            self.half
+            * x
+            * (
+                self.one
+                + (
+                    self.pi_const * (x + self.constant * self.pow((x, self.three)))
+                ).tanh()
+            )
+        )
+
+    def __call__(self, x):
+        return self.forward(x)

@@ -9,7 +9,7 @@ import torch
 from crypten.cuda import CUDALongTensor
 
 
-def generate_random_ring_element(size, ring_size=(2**64), generator=None, **kwargs):
+def generate_random_ring_element(size, ring_size=(2**23), generator=None, **kwargs):
     """Helper function to generate a random number from a signed ring"""
     if generator is None:
         device = kwargs.get("device", torch.device("cpu"))

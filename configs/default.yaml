@@ -4,12 +4,12 @@ debug:
   debug_mode: False
   validation_mode: False
 encoder:
-  precision_bits: 16
+  precision_bits: 20
 functions:
   max_method: "log_reduction"
 
   # exponential function
-  exp_iterations: 8
+  exp_iterations: 13
 
   # reciprocal configuration
   reciprocal_method: "NR"
@@ -19,7 +19,7 @@ functions:
   reciprocal_initial: null
 
   # sqrt configuration
-  sqrt_nr_iters: 3
+  sqrt_nr_iters: 9
   sqrt_nr_initial: null
 
   # sigmoid / tanh configuration

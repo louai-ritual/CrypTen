@@ -13,7 +13,7 @@ import torch
 from .common.tensor_types import is_float_tensor, is_int_tensor
 from .config import cfg
 from .cryptensor import CrypTensor
-
+from .cuda import CUDALongTensor
 
 def nearest_integer_division(tensor, integer):
     """Performs division of integer tensor, rounding to nearest integer."""
@@ -70,16 +70,16 @@ class FixedPointEncoder:
         if tensor is None:
             return None
         assert is_int_tensor(tensor), "input must be a LongTensor"
-        if self._scale > 1:
-            correction = (tensor < 0).long()
-            dividend = tensor.div(self._scale - correction, rounding_mode="floor")
-            remainder = tensor % self._scale
-            remainder += (remainder == 0).long() * self._scale * correction
 
+        if self._scale > 1:
+            dividend = tensor.div(self._scale, rounding_mode="floor")
+            remainder = tensor._tensor.remainder(self._scale) if isinstance(tensor, CUDALongTensor) else tensor.remainder(self._scale)
+            # Ensure remainder is positive for proper float division
+            remainder = remainder + self._scale * (remainder < 0).long()
             tensor = dividend.float() + remainder.float() / self._scale
         else:
             tensor = nearest_integer_division(tensor, self._scale)
-
+        
         return tensor.data
 
     def __setattr__(self, name, value):
